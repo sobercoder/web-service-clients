@@ -4,6 +4,8 @@ using System.Linq;
 using System.Net;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
+using System.Security.Cryptography;
+using System.Text;
 using System.Windows.Media.Imaging;
 
 
@@ -81,6 +83,18 @@ namespace Geocoding.Entities
 
 		[DataMember(Name = "southwest")]
 		public Location SouthWest { get; set; }
+	}
+
+	/// <summary>
+	/// REF: https://developers.google.com/maps/documentation/javascript/geocoding?hl=en
+	/// </summary>
+	[DataContract]
+	public enum GeocodingLocationType
+	{
+		[EnumMember(Value = "street_address")]
+		StreetAddress, // indicates a precise street address
+
+		[EnumMember(Value = "
 	}
 }
 
@@ -161,6 +175,17 @@ namespace Geocoding
 				string paramMapType = "roadmap";
 				string paramSize = "500x500";
 
+				MD5 md5Hash = MD5.Create();
+				var pngFilenameBytes = md5Hash.ComputeHash(Encoding.UTF8.GetBytes(paramCenter));
+				StringBuilder hashBuilder = new StringBuilder();
+
+				foreach (byte b in pngFilenameBytes)
+				{
+					hashBuilder.Append(b.ToString("x2"));
+				}
+
+				string paramPngFilename = string.Format("{0}-{1}-{2}.png", hashBuilder.ToString(), paramZoom, paramSize);
+
 				UriBuilder googleStaticMapsUriBuilder = new UriBuilder(googleStaticMapsBaseUrl);
 				googleStaticMapsUriBuilder.Query = string.Format("center={0}&zoom={1}&size={2}&maptype={3}&sensor=false", Uri.EscapeUriString(paramCenter), paramZoom, Uri.EscapeUriString(paramSize), paramMapType);
 
@@ -170,8 +195,6 @@ namespace Geocoding
 				{
 					if (googleStaticMapsResponse.StatusCode == HttpStatusCode.OK)
 					{
-						string paramPngFile = string.Format("{0}-{1}-{2}.png", Uri.EscapeUriString(paramCenter), paramZoom, paramSize);
-
 						using (BufferedStream googleStaticMapsResponseBufferedStream = new BufferedStream(googleStaticMapsResponse.GetResponseStream()))
 						{
 							if (googleStaticMapsResponseBufferedStream.CanRead)
@@ -179,12 +202,12 @@ namespace Geocoding
 								PngBitmapDecoder googleStaticMapsImageDecoder = new PngBitmapDecoder(googleStaticMapsResponseBufferedStream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.Default);
 								BitmapSource googleStaticMapsImageBitmapSource = googleStaticMapsImageDecoder.Frames[0];
 
-								if (File.Exists(paramPngFile))
+								if (File.Exists(paramPngFilename))
 								{
-									File.Delete(paramPngFile);
+									File.Delete(paramPngFilename);
 								}
 
-								using (FileStream googleStaticMapsPngStream = new FileStream(paramPngFile, FileMode.CreateNew))
+								using (FileStream googleStaticMapsPngStream = new FileStream(paramPngFilename, FileMode.CreateNew))
 								{
 									PngBitmapEncoder encoder = new PngBitmapEncoder();
 									encoder.Interlace = PngInterlaceOption.On;
