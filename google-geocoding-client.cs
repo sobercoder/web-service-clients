@@ -1,11 +1,11 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Runtime.Serialization;
-using System.Windows.Controls;
-using System.Xml;
+using System.Runtime.Serialization.Json;
+using System.Windows.Media.Imaging;
 
-using Newtonsoft.Json;
 
 #region "Data Contracts"
 
@@ -88,12 +88,7 @@ namespace Geocoding.Entities
 
 namespace Geocoding
 {
-	using System.IO;
 	using Geocoding.Entities;
-	using System.Text;
-	using System.Windows.Media.Imaging;
-	using System.Windows.Media;
-	using System.Runtime.Serialization.Json;
 
 	class Boot
 	{
@@ -163,10 +158,11 @@ namespace Geocoding
 				Result googleGeocodingResult = googleGeocodingJsonResponse.Results.First();
 				string paramCenter = googleGeocodingResult.FormattedAddress;
 				int paramZoom = 14;
+				string paramMapType = "roadmap";
 				string paramSize = "500x500";
 
 				UriBuilder googleStaticMapsUriBuilder = new UriBuilder(googleStaticMapsBaseUrl);
-				googleStaticMapsUriBuilder.Query = string.Format("center={0}&zoom={1}&size={2}&sensor=false", Uri.EscapeUriString(paramCenter), paramZoom, Uri.EscapeUriString(paramSize));
+				googleStaticMapsUriBuilder.Query = string.Format("center={0}&zoom={1}&size={2}&maptype={3}&sensor=false", Uri.EscapeUriString(paramCenter), paramZoom, Uri.EscapeUriString(paramSize), paramMapType);
 
 				HttpWebRequest googleStaticMapsRequest = WebRequest.Create(googleStaticMapsUriBuilder.Uri) as HttpWebRequest;
 
@@ -188,11 +184,13 @@ namespace Geocoding
 									File.Delete(paramPngFile);
 								}
 
-								FileStream googleStaticMapsPngStream = new FileStream(paramPngFile, FileMode.CreateNew);
-								PngBitmapEncoder encoder = new PngBitmapEncoder();
-								encoder.Interlace = PngInterlaceOption.On;
-								encoder.Frames.Add(BitmapFrame.Create(googleStaticMapsImageBitmapSource));
-								encoder.Save(googleStaticMapsPngStream);
+								using (FileStream googleStaticMapsPngStream = new FileStream(paramPngFile, FileMode.CreateNew))
+								{
+									PngBitmapEncoder encoder = new PngBitmapEncoder();
+									encoder.Interlace = PngInterlaceOption.On;
+									encoder.Frames.Add(BitmapFrame.Create(googleStaticMapsImageBitmapSource));
+									encoder.Save(googleStaticMapsPngStream);
+								}
 							}
 						}
 					}
